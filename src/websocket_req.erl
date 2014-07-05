@@ -6,6 +6,7 @@
           host                            :: string(),
           port                            :: inet:port_number(),
           path                            :: string(),
+          cookie                          :: string(),
           keepalive = infinity            :: infinity | integer(),
           keepalive_timer = undefined     :: undefined | reference(),
           socket                          :: inet:socket() | ssl:sslsocket(),
@@ -34,11 +35,12 @@
 -type fin() :: 0 | 1.
 -export_type([fin/0]).
 
--export([new/8,
+-export([new/9,
          protocol/2, protocol/1,
          host/2, host/1,
          port/2, port/1,
          path/2, path/1,
+         cookie/2, cookie/1,
          keepalive/2, keepalive/1,
          socket/2, socket/1,
          transport/2, transport/1,
@@ -58,14 +60,15 @@
         ]).
 
 -spec new(protocol(), string(), inet:port_number(),
-          string(), inet:socket() | ssl:sslsocket(),
+          string(), string(), inet:socket() | ssl:sslsocket(),
           module(), module(), binary()) -> req().
-new(Protocol, Host, Port, Path, Socket, Transport, Handler, Key) ->
+new(Protocol, Host, Port, Path, Cookie, Socket, Transport, Handler, Key) ->
     #websocket_req{
      protocol = Protocol,
      host = Host,
      port = Port,
      path = Path,
+     cookie = Cookie,
      socket = Socket,
      transport = Transport,
      handler = Handler,
@@ -101,14 +104,12 @@ protocol(#websocket_req{protocol = P}) -> P.
 protocol(P, Req) ->
     Req#websocket_req{protocol = P}.
 
-
 -spec host(req()) -> string().
 host(#websocket_req{host = H}) -> H.
 
 -spec host(string(), req()) -> req().
 host(H, Req) ->
     Req#websocket_req{host = H}.
-
 
 -spec port(req()) -> inet:port_number().
 port(#websocket_req{port = P}) -> P.
@@ -125,6 +126,12 @@ path(#websocket_req{path = P}) -> P.
 path(P, Req) ->
     Req#websocket_req{path = P}.
 
+-spec cookie(req()) -> string().
+cookie(#websocket_req{cookie = C}) -> C.
+
+-spec cookie(string(), req()) -> req().
+cookie(C, Req) ->
+  Req#websocket_req{cookie = C}.
 
 -spec keepalive(req()) -> integer().
 keepalive(#websocket_req{keepalive = K}) -> K.
@@ -212,6 +219,7 @@ g(protocol, #websocket_req{protocol = Ret}) -> Ret;
 g(host, #websocket_req{host = Ret}) -> Ret;
 g(port, #websocket_req{port = Ret}) -> Ret;
 g(path, #websocket_req{path = Ret}) -> Ret;
+g(cookie, #websocket_req{cookie = Ret}) -> Ret;
 g(keepalive, #websocket_req{keepalive = Ret}) -> Ret;
 g(keepalive_timer, #websocket_req{keepalive_timer = Ret}) -> Ret;
 g(socket, #websocket_req{socket = Ret}) -> Ret;
@@ -224,10 +232,10 @@ g(opcode, #websocket_req{opcode = Ret}) -> Ret;
 g(continuation, #websocket_req{continuation = Ret}) -> Ret;
 g(continuation_opcode, #websocket_req{continuation_opcode = Ret}) -> Ret.
 
-
 -spec set([{atom(), any()}], Req) -> Req when Req::req().
 set([{protocol, Val} | Tail], Req) -> set(Tail, Req#websocket_req{protocol = Val});
 set([{host, Val} | Tail], Req) -> set(Tail, Req#websocket_req{host = Val});
+set([{cookie, Val} | Tail], Req) -> set(Tail, Req#websocket_req{cookie = Val});
 set([{port, Val} | Tail], Req) -> set(Tail, Req#websocket_req{port = Val});
 set([{path, Val} | Tail], Req) -> set(Tail, Req#websocket_req{path = Val});
 set([{keepalive, Val} | Tail], Req) -> set(Tail, Req#websocket_req{keepalive = Val});

@@ -3,25 +3,25 @@
 -module(websocket_client).
 
 -export([
-         start_link/3,
          start_link/4,
+         start_link/5,
          cast/2,
          send/2
         ]).
 
--export([ws_client_init/7]).
+-export([ws_client_init/8]).
 
 %% @doc Start the websocket client
--spec start_link(URL :: string(), Handler :: module(), Args :: list()) ->
+-spec start_link(URL :: string(), Handler :: module(), Args :: list(), Cookie :: string()) ->
                         {ok, pid()} | {error, term()}.
-start_link(URL, Handler, Args) ->
-    start_link(URL, Handler, Args, true).
+start_link(URL, Handler, Args, Cookie) ->
+    start_link(URL, Handler, Args, Cookie, true).
 
-start_link(URL, Handler, Args, AsyncStart) ->
+start_link(URL, Handler, Args, Cookie, AsyncStart) ->
     case http_uri:parse(URL, [{scheme_defaults, [{ws,80},{wss,443}]}]) of
         {ok, {Protocol, _, Host, Port, Path, Query}} ->
             proc_lib:start_link(?MODULE, ws_client_init,
-                                [Handler, Protocol, Host, Port, Path ++ Query, Args, AsyncStart]);
+                                [Handler, Protocol, Host, Port, Path ++ Query, Cookie, Args, AsyncStart]);
         {error, _} = Error ->
             Error
     end.
@@ -35,10 +35,10 @@ cast(Client, Frame) ->
 
 %% @doc Create socket, execute handshake, and enter loop
 -spec ws_client_init(Handler :: module(), Protocol :: websocket_req:protocol(),
-                     Host :: string(), Port :: inet:port_number(), Path :: string(),
+                     Host :: string(), Port :: inet:port_number(), Path :: string(), Cookie :: string(), 
                      Args :: list(), AsyncStart :: boolean()) ->
                             no_return().
-ws_client_init(Handler, Protocol, Host, Port, Path, Args, AsyncStart) ->
+ws_client_init(Handler, Protocol, Host, Port, Path, Cookie, Args, AsyncStart) ->
     Transport = case Protocol of
                     wss ->
                         ssl;
@@ -71,6 +71,7 @@ ws_client_init(Handler, Protocol, Host, Port, Path, Args, AsyncStart) ->
               Host,
               Port,
               Path,
+              Cookie,
               Socket,
               Transport,
               Handler,
@@ -112,11 +113,12 @@ ws_client_init(Handler, Protocol, Host, Port, Path, Args, AsyncStart) ->
 %% @doc Send http upgrade request and validate handshake response challenge
 -spec websocket_handshake(WSReq :: websocket_req:req()) -> {ok, binary()} | {error, term()}.
 websocket_handshake(WSReq) ->
-    [Protocol, Path, Host, Key, Transport, Socket] =
-        websocket_req:get([protocol, path, host, key, transport, socket], WSReq),
+    [Protocol, Path, Host, Key, Transport, Socket, Cookie] =
+        websocket_req:get([protocol, path, host, key, transport, socket, cookie], WSReq),
     Handshake = ["GET ", Path, " HTTP/1.1\r\n"
                  "Host: ", Host, "\r\n"
                  "Connection: Upgrade\r\n"
+                 "Cookie: ", Cookie, "\r\n"
                  "Origin: ", atom_to_binary(Protocol, utf8), "://", Host, "\r\n"
                  "Sec-WebSocket-Version: 13\r\n"
                  "Sec-WebSocket-Key: ", Key, "\r\n"
